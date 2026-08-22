@@ -384,7 +384,7 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;heig
   <div style="background:var(--accent-light);border:1px solid rgba(61,110,245,.25);border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:12px;line-height:1.8;color:#1e3a8a;">
     <strong>📌 固定規則</strong><br>
     林君諺＋呂芷妮→固定中茂　徐嫚聆＋賴怡安→固定慈文　吳昶毅→固定G9<br>
-    陳妍築每週2天 11:00-19:00　郭貞吟為管理職彈性調度　王凱薇/田家慈彈性支援<br>
+    郭貞吟為管理職彈性調度　陳妍築/王凱薇/田家慈彈性支援<br>
     ✦ 個人休假日、禁排日均在下方設定，排班時自動排除
   </div>
 
@@ -479,9 +479,7 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;heig
           <div class="form-row"><label class="form-lbl">週末班次結束</label><input type="time" class="form-ctrl" id="auto-we-end" value="17:00"></div>
         </div>
         <div class="form-2">
-          <div class="form-row"><label class="form-lbl">陳妍築上午班開始</label><input type="time" class="form-ctrl" id="auto-am-start" value="11:00"></div>
-          <div class="form-row"><label class="form-lbl">陳妍築上午班結束</label><input type="time" class="form-ctrl" id="auto-am-end" value="19:00"></div>
-        </div>
+          </div>
       </div>
       <!-- 暑期模式設定 -->
       <div id="summer-shift-settings" style="display:none;">
@@ -814,13 +812,13 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;heig
       <div style="background:var(--accent-light);border-radius:8px;padding:10px 14px;font-size:11px;line-height:1.8;margin-bottom:14px;color:#1e3a8a;">
         <strong>📋 支援格式</strong><br>
         每行一筆：<code style="background:#dbeafe;padding:1px 5px;border-radius:3px;">日期, 姓名, 分校, 開始時間, 結束時間, 備註</code><br>
-        例：<code style="background:#dbeafe;padding:1px 5px;border-radius:3px;">2026-07-01, 賴怡安, 慈, 09:00, 17:00, 國一導師</code><br>
+        例：<code style="background:#dbeafe;padding:1px 5px;border-radius:3px;">2026-08-03, 賴怡安, 慈, 09:00, 18:00, 國一導師</code><br>
         分校代碼：慈＝慈文　茂＝中茂　G9＝G9
       </div>
       <!-- 貼上區 -->
       <div class="form-row">
         <label class="form-lbl">貼上課表內容</label>
-        <textarea class="form-ctrl" id="import-text" rows="10" placeholder="2026-07-01, 賴怡安, 慈, 09:00, 17:00, 國一導師&#10;2026-07-01, 徐嫚聆, 慈, 09:00, 17:00, 國二導師&#10;..." style="font-family:'DM Mono',monospace;font-size:11px;resize:vertical;"></textarea>
+        <textarea class="form-ctrl" id="import-text" rows="10" placeholder="2026-08-03, 賴怡安, 慈, 09:00, 18:00, 國一導師&#10;2026-08-03, 徐嫚聆, 慈, 09:00, 18:00, 國二導師&#10;..." style="font-family:'DM Mono',monospace;font-size:11px;resize:vertical;"></textarea>
       </div>
       <!-- 選項 -->
       <div style="display:flex;gap:12px;margin-top:10px;flex-wrap:wrap;">
@@ -872,12 +870,15 @@ const LEGAL_HOURS_TABLE={
 };
 function getLegalHours(){return LEGAL_HOURS_TABLE[`${state.year}-${String(state.month+1).padStart(2,'0')}`]||176;}
 
-let state={year:2026,month:5,filterStaff:null,editShiftId:null,editStaffId:null,nextId:1000};
-let ssState={staffId:null,year:2026,month:5};
-let autoState={year:2026,month:5,previewShifts:null};
+// 首頁永遠顯示當月
+const _now=new Date();
+let state={year:_now.getFullYear(),month:_now.getMonth(),filterStaff:null,editShiftId:null,editStaffId:null,nextId:1000};
+let ssState={staffId:null,year:_now.getFullYear(),month:_now.getMonth()};
+let autoState={year:_now.getFullYear(),month:_now.getMonth(),previewShifts:null};
 
 // ── STAFF ──
 let staff=[
+  {id:14,name:'林依柔',type:'管理職',role:'顧問',wage:0,color:'#b45309',leaveBalance:7,leaveUsed:0},
   {id:1,name:'郭貞吟',type:'管理職',role:'顧問',wage:0,color:'#3d6ef5',leaveBalance:7,leaveUsed:0},
   {id:2,name:'徐嫚聆',type:'正職',role:'行政',wage:0,color:'#7c5cfc',leaveBalance:7,leaveUsed:0},
   {id:3,name:'林君諺',type:'正職',role:'行政',wage:0,color:'#059669',leaveBalance:8,leaveUsed:0},
@@ -890,7 +891,6 @@ let staff=[
   {id:10,name:'林昱希',type:'兼職',role:'行政',wage:200,color:'#64748b',leaveBalance:0,leaveUsed:0},
   {id:11,name:'尤黃正',type:'兼職',role:'行政',wage:200,color:'#78716c',leaveBalance:0,leaveUsed:0},
   {id:12,name:'周秀慧',type:'兼職',role:'行政',wage:200,color:'#a16207',leaveBalance:0,leaveUsed:0},
-  {id:13,name:'陳瑋泓',type:'兼職',role:'行政',wage:200,color:'#0f766e',leaveBalance:0,leaveUsed:0},
 ];
 
 // ── SHIFTS ──
@@ -914,7 +914,7 @@ let noLeaveLimit=new Set(); // 當日無休假人數限制
 let manualMeetings={};
 // ── 自動排班專用設定 ──
 // autoLeaves: { staffId: Set of 'YYYY-MM-DD' }  指定休假（排班時跳過）
-let autoLeaves = {};   // e.g. { 2: new Set(['2026-07-03','2026-07-10']) }
+let autoLeaves = {};   // e.g. { 2: new Set(['YYYY-MM-DD']) }
 // autoBlockDays: Set of 'YYYY-MM-DD'  禁排日（例會/活動，當天全員不自動排班）
 let autoBlockDays = new Set();
 // branchHolidays: { 'YYYY-MM-DD': Set('慈'|'茂'|'G9') } 分校公休（該分校當天不排人）
@@ -1482,7 +1482,7 @@ function runAutoSchedule(){
 
   // ── 人員分類 ──
   const ftStaff=staff.filter(s=>s.type==='正職'||s.type==='管理職').map(s=>s.id);
-  const ptStaff=staff.filter(s=>s.type==='兼職').map(s=>s.id).filter(id=>id!==13); // 陳瑋泓預設不排
+  const ptStaff=staff.filter(s=>s.type==='兼職').map(s=>s.id); // 全部兼職納入
   const hoursTracker={}; // 累計工時
   staff.forEach(s=>hoursTracker[s.id]=0);
 
@@ -1498,6 +1498,7 @@ function runAutoSchedule(){
     const isWknd=dow>=5;
     const flag=dayFlags[ds];
     if(flag?.type==='holiday')continue; // 公休不排
+    if(dow===6)continue; // 週日固定公休
 
     const onLeave=new Set(leaves.filter(l=>l.date===ds).map(l=>l.staffId));
     const todayShifts=[];
@@ -1588,6 +1589,25 @@ function runAutoSchedule(){
   autoState.warnings=warnings;
   document.getElementById('autoRunStatus').textContent=`已產生 ${generated.length} 筆班次`;
   renderAutoPreview();
+}
+
+function renderAutoPreview(){
+  const gen=autoState.previewShifts||[];
+  const warnings=autoState.warnings||[];
+  const y=autoState.year,m=autoState.month;
+  document.getElementById('autoPreview').style.display='block';
+  document.getElementById('autoPreviewStats').textContent=`共 ${gen.length} 筆班次`;
+  // 警示列表
+  const warnEl=document.getElementById('autoPreviewWarnings');
+  if(warnings.length){
+    warnEl.innerHTML=warnings.map(w=>{
+      const isWarn=w.type==='warn';
+      return`<div class="${isWarn?'auto-err':'auto-info'}" style="font-size:11px;padding:5px 10px;margin-bottom:3px;border-radius:6px;${isWarn?'background:var(--red-light);color:var(--red);':'background:var(--accent-light);color:#1e40af;'}display:flex;gap:6px;align-items:center;"><span>${isWarn?'⚠':'ℹ️'}</span><span>${w.msg}</span></div>`;
+    }).join('');
+  } else {
+    warnEl.innerHTML='<div style="font-size:11px;padding:5px 10px;border-radius:6px;background:var(--green-light);color:var(--green);">✓ 排班完成，無警示</div>';
+  }
+  renderAutoCalendar(gen,y,m);
 }
 
 function renderAutoCalendar(gen,y,m){
