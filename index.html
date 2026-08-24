@@ -1234,7 +1234,7 @@ function renderReport(){
   document.getElementById('reportMonthLabel').textContent=`${state.year} 年 ${state.month+1} 月`;
   const lh=getLegalHours();
   let htHtml='<thead><tr><th>姓名</th><th>類型</th><th>工時</th><th>法定</th><th>差異</th></tr></thead><tbody>';
-  staff.filter(s=>s.type==='正職'||s.type==='管理職').forEach(s=>{
+  staff.forEach(s=>{
     const h=staffMonthHours(s.id),diff=h-lh;
     htHtml+=`<tr><td>${s.name}</td><td><span class="badge ${s.type==='管理職'?'badge-purple':'badge-blue'}">${s.type}</span></td><td style="font-family:'DM Mono',monospace">${h.toFixed(1)}h</td><td style="font-family:'DM Mono',monospace;color:var(--muted)">${lh}h</td><td><span class="badge ${diff>=0?'badge-green':'badge-yellow'}">${diff>0?'+':''}${diff.toFixed(0)}h</span></td></tr>`;
   });
@@ -1481,7 +1481,7 @@ function runAutoSchedule(){
   }
 
   // ── 人員分類 ──
-  const ftStaff=staff.filter(s=>s.type==='正職'||s.type==='管理職').map(s=>s.id);
+  const ftStaff=staff.filter(s=>(s.type==='正職'||s.type==='管理職')&&s.id!==14).map(s=>s.id); // 林依柔不列入自動排班
   const ptStaff=staff.filter(s=>s.type==='兼職').map(s=>s.id); // 全部兼職納入
   const hoursTracker={}; // 累計工時
   staff.forEach(s=>hoursTracker[s.id]=0);
@@ -1501,6 +1501,8 @@ function runAutoSchedule(){
     if(dow===6)continue; // 週日固定公休
 
     const onLeave=new Set(leaves.filter(l=>l.date===ds).map(l=>l.staffId));
+    // 個人指定休假日（自動排班設定）
+    Object.entries(autoLeaves).forEach(([sid,dates])=>{if(dates.has(ds))onLeave.add(parseInt(sid));});
     const todayShifts=[];
     const hasShift=sid=>todayShifts.some(s=>s.staffId===sid);
     const bhToday=new Set();
