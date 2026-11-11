@@ -91,10 +91,15 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;heig
 .cal-head{text-align:center;font-size:10px;font-weight:700;letter-spacing:.5px;color:var(--muted);padding:5px 0;text-transform:uppercase;}
 .cal-head.we{color:var(--accent);}
 .day-cell{background:#fff;border:1px solid var(--border);border-radius:8px;min-height:115px;cursor:pointer;transition:border-color .12s;position:relative;box-shadow:var(--shadow);display:flex;flex-direction:column;padding:4px;}
+.day-cell.is-holiday{background:#e5e7eb;border-color:#d1d5db;}
+.day-branch-col.bh-off{background:#e5e7eb!important;opacity:.7;}
+.day-branch-col.bh-off .day-branch-label{color:#9ca3af!important;}
+.day-cell.is-holiday .day-num{color:#9ca3af;}
+.day-cell.is-holiday:hover{border-color:#9ca3af;}
 .day-cell:hover{border-color:var(--accent);}
 .day-cell.empty{background:transparent;border-color:transparent;box-shadow:none;cursor:default;}
 .day-cell.today{border-color:var(--accent);box-shadow:0 0 0 2px rgba(61,110,245,.15);}
-.day-cell.is-holiday{background:#fff5f5;}
+
 .day-top{display:flex;align-items:flex-start;gap:3px;margin-bottom:3px;flex-wrap:wrap;}
 .day-num{font-size:11px;font-weight:700;color:var(--muted);flex-shrink:0;}
 .day-cell.today .day-num{background:var(--accent);color:#fff;width:18px;height:18px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;}
@@ -236,7 +241,7 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;heig
 .ss-dc.today{border-color:var(--accent);}
 .ss-dc.has-shift{background:#fff;}
 .ss-dc.on-leave{background:#f0fdf4;border-color:#86efac;}
-.ss-dc.is-holiday{background:#fff5f5;}
+.ss-dc.is-holiday{background:#e5e7eb;}
 .ss-dn{font-weight:700;color:var(--muted);font-size:10px;margin-bottom:2px;}
 .ss-dc.today .ss-dn{background:var(--accent);color:#fff;width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:9px;}
 .ss-shift-block{display:block;width:100%;text-align:left;border:none;border-radius:4px;padding:2px 4px;margin-bottom:1px;font-size:9px;font-weight:600;cursor:pointer;font-family:inherit;transition:opacity .12s;}
@@ -746,7 +751,7 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;heig
     <div class="form-2">
       <div class="form-row"><label class="form-lbl">姓名</label><input type="text" class="form-ctrl" id="stm-name" placeholder="例：王小明"></div>
       <div class="form-row"><label class="form-lbl">類型</label>
-        <select class="form-ctrl" id="stm-type"><option value="正職">正職</option><option value="管理職">管理職</option><option value="兼職">兼職</option></select>
+        <select class="form-ctrl" id="stm-type"><option value="正職">正職</option><option value="管理職">管理職</option><option value="兼職">兼職</option><option value="外勤">外勤</option></select>
       </div>
     </div>
     <div class="form-2">
@@ -756,6 +761,10 @@ header{background:#fff;border-bottom:1px solid var(--border);padding:0 20px;heig
     <div class="form-2">
       <div class="form-row"><label class="form-lbl">特休餘額(天)</label><input type="number" class="form-ctrl" id="stm-leave" value="7" step="0.5"></div>
       <div class="form-row"><label class="form-lbl">顯示顏色</label><input type="color" class="form-ctrl" id="stm-color" value="#3d6ef5" style="height:38px;padding:4px 6px;"></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;margin-top:4px;font-size:13px;">
+      <input type="checkbox" id="stm-inauto" checked style="width:16px;height:16px;">
+      <label for="stm-inauto" style="cursor:pointer">參與自動排班（取消勾選＝僅手動排班）</label>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('staffModal')">取消</button>
@@ -937,6 +946,12 @@ let events={};
 // ══════════════════════════════════════════════════════
 //  HELPERS
 // ══════════════════════════════════════════════════════
+function inAutoOf(s){ // 是否參與自動排班（未設定時的預設規則）
+  if(s.inAuto!==undefined)return s.inAuto;
+  if(s.id===14)return false;      // 林依柔預設不參與
+  if(s.type==='外勤')return false; // 外勤預設僅手動
+  return true;
+}
 function getStaff(id){return staff.find(s=>s.id===id);}
 function t2m(t){if(!t)return 0;const[h,m]=t.split(':').map(Number);return h*60+m;}
 function shiftH(s){return Math.max(0,(t2m(s.end)-t2m(s.start))/60);}
@@ -1071,14 +1086,17 @@ function renderCalendar(){
     const dayShifts=shifts.filter(s=>s.date===ds);
     const filtered=state.filterStaff?dayShifts.filter(s=>s.staffId===state.filterStaff):dayShifts;
     const dayLeaves=leaves.filter(l=>l.date===ds);
-    const flag=dayFlags[ds],isHoliday=flag?.type==='holiday',isToday=ds===today;
+    const bhSet=branchHolidays[ds]||new Set();
+    const allBranchHol=['慈','茂','G9'].every(b=>bhSet.has(b));
+    const isSunday=((new Date(ds+'T00:00:00').getDay())===0)&&dayShifts.length===0;
+    const flag=dayFlags[ds],isHoliday=flag?.type==='holiday'||allBranchHol||isSunday,isToday=ds===today;
     const noStudy=noSelfStudy.has(ds),dow2=new Date(ds+'T00:00:00').getDay(),isWknd=dow2===0||dow2===6;
     const hasConflict=detectConflicts().some(c=>c.date===ds),leaveWarn=leaveDays.has(ds);
     const dayMtgs=mtgs[ds]||[];
     const ev=events[ds];
 
     let flagsHtml='';
-    if(isHoliday)flagsHtml+=`<span class="flag-holiday">🚫${flag.label||'公休'}</span>`;
+    if(isHoliday)flagsHtml+=`<span class="flag-holiday">🚫${flag?.label||'公休'}</span>`;
     if(flag?.type==='exam')flagsHtml+=`<span class="flag-exam">📝段考</span>`;
     if(!isHoliday&&!isWknd){if(noStudy)flagsHtml+=`<span class="flag-no-study">無自習</span>`;}
     if(noLeaveEventDays.has(ds))flagsHtml+=`<span style="font-size:9px;font-weight:700;padding:1px 5px;border-radius:3px;background:#fef3c7;color:#d97706;display:inline-block">🔒禁休</span>`;
@@ -1099,8 +1117,8 @@ function renderCalendar(){
       <div class="day-top"><div class="day-num">${day}</div><div style="display:flex;flex-wrap:wrap;gap:2px;flex:1">${flagsHtml}</div></div>
       ${mtgHtml?`<div class="day-flags-row">${mtgHtml}</div>`:''}
       <div class="day-split">
-        <div class="day-branch-col cw"><div class="day-branch-label cw">慈</div>${cwS.map(chipHtml).join('')}${cwS.length===0?`<div style="font-size:8px;color:#c7d2fe">—</div>`:''}</div>
-        <div class="day-branch-col zm"><div class="day-branch-label zm">茂</div>${zmS.map(chipHtml).join('')}${zmS.length===0?`<div style="font-size:8px;color:#a7f3d0">—</div>`:''}</div>
+        <div class="day-branch-col cw${bhSet.has('慈')?' bh-off':''}"><div class="day-branch-label cw">慈${bhSet.has('慈')?'休':''}</div>${cwS.map(chipHtml).join('')}${cwS.length===0?`<div style="font-size:8px;color:#c7d2fe">—</div>`:''}</div>
+        <div class="day-branch-col zm${bhSet.has('茂')?' bh-off':''}"><div class="day-branch-label zm">茂${bhSet.has('茂')?'休':''}</div>${zmS.map(chipHtml).join('')}${zmS.length===0?`<div style="font-size:8px;color:#a7f3d0">—</div>`:''}</div>
       </div>
       ${otherHtml?`<div style="margin-top:2px">${otherHtml}</div>`:''}
       ${leavesHtml?`<div class="day-leaves-row">${leavesHtml}</div>`:''}
@@ -1263,14 +1281,14 @@ let slotRequirements=[
   {branch:'慈', start:'13:00', end:'17:30', count:1, staffType:'pt', days:'wd'},
   {branch:'茂', start:'13:00', end:'21:30', count:2, staffType:'any', days:'wd'},
   {branch:'G9', start:'12:00', end:'21:30', count:2, staffType:'any', days:'wd'},
-  {branch:'慈', start:'08:30', end:'17:00', count:1, staffType:'any', days:'we'},
+  {branch:'慈', start:'08:30', end:'17:00', count:1, staffType:'any', days:'sat'},
 ];
 
 function renderSlotReqList(){
   const el=document.getElementById('slotReqList');if(!el)return;
   const brOpts=[['慈','慈文'],['茂','中茂'],['G9','G9'],['外勤','外勤']];
   const typeOpts=[['any','不限'],['ft','正職'],['pt','兼職']];
-  const dayOpts=[['wd','平日'],['we','週末'],['all','全部']];
+  const dayOpts=[['wd','平日'],['sat','週六'],['sun','週日'],['all','全部']];
   el.innerHTML=slotRequirements.map((r,i)=>`
     <div style="display:flex;gap:4px;align-items:center;margin-bottom:5px;flex-wrap:wrap;background:var(--bg);padding:6px 8px;border-radius:7px;">
       <select class="form-ctrl" style="width:64px;padding:3px 5px;font-size:11px" onchange="updSlot(${i},'branch',this.value)">
@@ -1369,11 +1387,10 @@ function removeBranchHoliday(date,br){
 
 function renderBranchHolidayList(){
   const el=document.getElementById('branchHolidayList');if(!el)return;
-  const p=`${autoState.year}-${String(autoState.month+1).padStart(2,'0')}`;
-  const days=Object.keys(branchHolidays).filter(d=>d.startsWith(p)).sort();
+  const days=Object.keys(branchHolidays).sort(); // 顯示全部（不限當月）
   if(!days.length){el.innerHTML=`<div style="font-size:11px;color:var(--muted);padding:6px 0">尚無分校公休設定</div>`;return;}
-  const BCOL={'慈':'#3d6ef5','茂':'#059669','G9':'#7c3aed'};
-  const BBG={'慈':'#eef2ff','茂':'#d1fae5','G9':'#ede9fe'};
+  const BCOL={'慈':'#3d6ef5','茂':'#059669','G9':'#7c3aed','外勤':'#ea580c'};
+  const BBG={'慈':'#eef2ff','茂':'#d1fae5','G9':'#ede9fe','外勤':'#ffedd5'};
   el.innerHTML=days.map(d=>{
     const dow=getDow(d);
     const branches=[...branchHolidays[d]];
@@ -1481,8 +1498,8 @@ function runAutoSchedule(){
   }
 
   // ── 人員分類 ──
-  const ftStaff=staff.filter(s=>(s.type==='正職'||s.type==='管理職')&&s.id!==14).map(s=>s.id); // 林依柔不列入自動排班
-  const ptStaff=staff.filter(s=>s.type==='兼職').map(s=>s.id); // 全部兼職納入
+  const ftStaff=staff.filter(s=>(s.type==='正職'||s.type==='管理職')&&inAutoOf(s)).map(s=>s.id);
+  const ptStaff=staff.filter(s=>s.type==='兼職'&&inAutoOf(s)).map(s=>s.id);
   const hoursTracker={}; // 累計工時
   staff.forEach(s=>hoursTracker[s.id]=0);
 
@@ -1498,7 +1515,6 @@ function runAutoSchedule(){
     const isWknd=dow>=5;
     const flag=dayFlags[ds];
     if(flag?.type==='holiday')continue; // 公休不排
-    if(dow===6)continue; // 週日固定公休
 
     const onLeave=new Set(leaves.filter(l=>l.date===ds).map(l=>l.staffId));
     // 個人指定休假日（自動排班設定）
@@ -1506,12 +1522,15 @@ function runAutoSchedule(){
     const todayShifts=[];
     const hasShift=sid=>todayShifts.some(s=>s.staffId===sid);
     const bhToday=new Set();
-    Object.entries(branchHolidays).forEach(([br,days])=>{if(days.has(ds))bhToday.add(br);});
+    if(branchHolidays[ds])branchHolidays[ds].forEach(br=>bhToday.add(br)); // {日期:Set(分校)}
 
     // ── 依 slotRequirements 排班 ──
     const todaySlots=slotRequirements.filter(r=>{
-      if(r.days==='wd'&&isWknd)return false;
-      if(r.days==='we'&&!isWknd)return false;
+      const d=r.days||'all';
+      if(d==='wd'&&dow>=5)return false;
+      if(d==='sat'&&dow!==5)return false;
+      if(d==='sun'&&dow!==6)return false;
+      if(d==='we'&&dow<5)return false; // 舊資料相容
       if(bhToday.has(r.branch))return false;
       return true;
     });
@@ -1619,14 +1638,17 @@ function renderAutoCalendar(gen,y,m){
   for(let day=1;day<=total;day++){
     const ds=`${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
     const dayS=gen.filter(s=>s.date===ds);
-    const flag=dayFlags[ds],isHol=flag?.type==='holiday';
+    const bhSet2=branchHolidays[ds]||new Set();
+    const allBH2=['慈','茂','G9'].every(b=>bhSet2.has(b));
+    const isSun2=((new Date(ds+'T00:00:00').getDay())===0)&&dayS.length===0;
+    const flag=dayFlags[ds],isHol=flag?.type==='holiday'||allBH2||isSun2;
     const cwS=dayS.filter(s=>s.branch==='慈'),zmS=dayS.filter(s=>s.branch==='茂'),othS=dayS.filter(s=>s.branch!=='慈'&&s.branch!=='茂');
     function chip(sh){const s=getStaff(sh.staffId);if(!s)return'';return`<div class="chip" style="background:rgba(${hexRgb(s.color)},.12)"><div class="chip-dot" style="background:${s.color}"></div><span class="chip-name" style="color:${s.color}">${s.name}</span></div>`;}
     html+=`<div class="day-cell${isHol?' is-holiday':''}">
-      <div class="day-top"><div class="day-num">${day}</div>${isHol?`<span class="flag-holiday">🚫${flag.label}</span>`:''}</div>
+      <div class="day-top"><div class="day-num">${day}</div>${isHol?`<span class="flag-holiday">🚫${flag?.label||'公休'}</span>`:''}</div>
       <div class="day-split">
-        <div class="day-branch-col cw"><div class="day-branch-label cw">慈(${cwS.length})</div>${cwS.map(chip).join('')}</div>
-        <div class="day-branch-col zm"><div class="day-branch-label zm">茂(${zmS.length})</div>${zmS.map(chip).join('')}</div>
+        <div class="day-branch-col cw${bhSet2.has('慈')?' bh-off':''}"><div class="day-branch-label cw">慈${bhSet2.has('慈')?'休':'('+cwS.length+')'}</div>${cwS.map(chip).join('')}</div>
+        <div class="day-branch-col zm${bhSet2.has('茂')?' bh-off':''}"><div class="day-branch-label zm">茂${bhSet2.has('茂')?'休':'('+zmS.length+')'}</div>${zmS.map(chip).join('')}</div>
       </div>
       ${othS.length?`<div style="margin-top:2px">${othS.map(sh=>{const s=getStaff(sh.staffId);if(!s)return'';const bc=BRANCH_COLOR[sh.branch]||'#888';return`<div class="chip" style="background:rgba(${hexRgb(s.color)},.12)"><div class="chip-dot" style="background:${s.color}"></div><span class="chip-name" style="color:${s.color}">${s.name}</span><span style="font-size:9px;color:${bc}">${sh.branch}</span></div>`;}).join('')}</div>`:''}
     </div>`;
@@ -1645,9 +1667,10 @@ function applyAutoSchedule(){
   const p=`${autoState.year}-${String(autoState.month+1).padStart(2,'0')}`;
   // Remove existing auto shifts for that month (以 auto 標記辨識)
   shifts=shifts.filter(s=>!(s.date.startsWith(p)&&s.auto===true));
-  // Add new ones
-  shifts.push(...autoState.previewShifts);
-  toast(`✓ 已套用 ${autoState.previewShifts.length} 筆班次至 ${autoState.year}年${autoState.month+1}月`,'ok');
+  // Add new ones（再次確保公休日不寫入）
+  const toAdd=autoState.previewShifts.filter(s=>dayFlags[s.date]?.type!=='holiday');
+  shifts.push(...toAdd);
+  toast(`✓ 已套用 ${toAdd.length} 筆班次至 ${autoState.year}年${autoState.month+1}月`,'ok');
   clearAutoPreview();
   // Switch to schedule view for same month
   state.year=autoState.year;state.month=autoState.month;
@@ -1755,7 +1778,27 @@ function renderDayFlagBtns(ds){
   html+=noLim?`<button class="btn btn-green btn-sm" onclick="toggleLeaveLimit('${ds}')">🔓 恢復人數限制</button>`:`<button class="btn btn-secondary btn-sm" onclick="toggleLeaveLimit('${ds}')">🔓 當日休假不限人</button>`;
   document.getElementById('dayFlagBtns').innerHTML=html;
 }
-function toggleHoliday(ds){if(dayFlags[ds]?.type==='holiday'){delete dayFlags[ds];toast(`${ds.slice(5)} 已取消公休`);}else{dayFlags[ds]={type:'holiday',label:'公休'};toast(`${ds.slice(5)} 設為公休 🚫`);}renderDayFlagBtns(ds);renderDayLeaveRow(ds);render();}
+function toggleHoliday(ds){
+  if(dayFlags[ds]?.type==='holiday'){
+    delete dayFlags[ds];
+    toast(`${ds.slice(5)} 已取消公休`);
+  }else{
+    dayFlags[ds]={type:'holiday',label:'公休'};
+    // 設公休時，若該日已有班次 → 詢問是否一併清除
+    const dayShifts=shifts.filter(s=>s.date===ds);
+    if(dayShifts.length>0){
+      if(confirm(`${ds.slice(5)} 已有 ${dayShifts.length} 筆班次\n設為公休後是否一併移除這些班次？`)){
+        shifts=shifts.filter(s=>s.date!==ds);
+        toast(`${ds.slice(5)} 設為公休，已移除 ${dayShifts.length} 筆班次 🚫`);
+      }else{
+        toast(`${ds.slice(5)} 設為公休（班次保留，請自行調整）🚫`);
+      }
+    }else{
+      toast(`${ds.slice(5)} 設為公休 🚫`);
+    }
+  }
+  renderDayFlagBtns(ds);renderDayLeaveRow(ds);render();
+}
 function toggleExam(ds){if(dayFlags[ds]?.type==='exam'){delete dayFlags[ds];toast(`${ds.slice(5)} 已取消段考複習`);}else{dayFlags[ds]={type:'exam',label:'段考複習'};toast(`${ds.slice(5)} 標記段考複習 📝`);}renderDayFlagBtns(ds);render();}
 function toggleEventDay(ds){
   if(noLeaveEventDays.has(ds)){
@@ -1882,9 +1925,9 @@ function saveVisit(){const staffId=parseInt(document.getElementById('vm-staff').
 function deleteVisit(id){visits=visits.filter(v=>v.id!==id);toast('已刪除跑校記錄');render();}
 
 // ── STAFF ACTIONS ──
-function openAddStaff(){state.editStaffId=null;document.getElementById('staffModalTitle').textContent='新增人員';document.getElementById('stm-del').style.display='none';document.getElementById('stm-name').value='';document.getElementById('stm-role').value='';document.getElementById('stm-type').value='正職';document.getElementById('stm-wage').value=200;document.getElementById('stm-leave').value=7;document.getElementById('stm-color').value='#3d6ef5';openModal('staffModal');}
-function openEditStaff(id){const s=getStaff(id);if(!s)return;state.editStaffId=id;document.getElementById('staffModalTitle').textContent='編輯人員';document.getElementById('stm-del').style.display='flex';document.getElementById('stm-name').value=s.name;document.getElementById('stm-role').value=s.role;document.getElementById('stm-type').value=s.type;document.getElementById('stm-wage').value=s.wage;document.getElementById('stm-leave').value=s.leaveBalance;document.getElementById('stm-color').value=s.color;openModal('staffModal');}
-function saveStaff(){const name=document.getElementById('stm-name').value.trim();if(!name){toast('請填寫姓名','err');return;}const obj={name,type:document.getElementById('stm-type').value,role:document.getElementById('stm-role').value,wage:parseInt(document.getElementById('stm-wage').value),leaveBalance:parseFloat(document.getElementById('stm-leave').value),color:document.getElementById('stm-color').value,leaveUsed:0};if(state.editStaffId){const idx=staff.findIndex(s=>s.id===state.editStaffId);if(idx>=0)staff[idx]={...staff[idx],...obj};toast('人員資料已更新 ✓');}else{staff.push({id:state.nextId++,...obj});toast(`${name} 已加入 ✓`);}closeModal('staffModal');render();}
+function openAddStaff(){state.editStaffId=null;document.getElementById('staffModalTitle').textContent='新增人員';document.getElementById('stm-del').style.display='none';document.getElementById('stm-name').value='';document.getElementById('stm-role').value='';document.getElementById('stm-type').value='正職';document.getElementById('stm-wage').value=200;document.getElementById('stm-leave').value=7;document.getElementById('stm-color').value='#3d6ef5';document.getElementById('stm-inauto').checked=true;openModal('staffModal');}
+function openEditStaff(id){const s=getStaff(id);if(!s)return;state.editStaffId=id;document.getElementById('staffModalTitle').textContent='編輯人員';document.getElementById('stm-del').style.display='flex';document.getElementById('stm-name').value=s.name;document.getElementById('stm-role').value=s.role;document.getElementById('stm-type').value=s.type;document.getElementById('stm-wage').value=s.wage;document.getElementById('stm-leave').value=s.leaveBalance;document.getElementById('stm-color').value=s.color;document.getElementById('stm-inauto').checked=inAutoOf(s);openModal('staffModal');}
+function saveStaff(){const name=document.getElementById('stm-name').value.trim();if(!name){toast('請填寫姓名','err');return;}const obj={name,type:document.getElementById('stm-type').value,role:document.getElementById('stm-role').value,wage:parseInt(document.getElementById('stm-wage').value),leaveBalance:parseFloat(document.getElementById('stm-leave').value),color:document.getElementById('stm-color').value,inAuto:document.getElementById('stm-inauto').checked,leaveUsed:0};if(state.editStaffId){const idx=staff.findIndex(s=>s.id===state.editStaffId);if(idx>=0){const keep=staff[idx].leaveUsed;staff[idx]={...staff[idx],...obj,leaveUsed:keep};}toast('人員資料已更新 ✓');}else{staff.push({id:state.nextId++,...obj});toast(`${name} 已加入 ✓`);}closeModal('staffModal');render();}
 function deleteStaff(){const s=getStaff(state.editStaffId);staff=staff.filter(st=>st.id!==state.editStaffId);shifts=shifts.filter(sh=>sh.staffId!==state.editStaffId);leaves=leaves.filter(l=>l.staffId!==state.editStaffId);toast(`${s?.name} 已刪除`);closeModal('staffModal');render();}
 
 // ── CSV EXPORT ──
@@ -1944,8 +1987,8 @@ function previewImport(){
   const skipped=rows.length-filtered.length;
   _importParsed=filtered;
   const el=document.getElementById('import-preview-list');
-  const BCOL={'慈':'#3d6ef5','茂':'#059669','G9':'#7c3aed'};
-  const BBG={'慈':'#eef2ff','茂':'#d1fae5','G9':'#ede9fe'};
+  const BCOL={'慈':'#3d6ef5','茂':'#059669','G9':'#7c3aed','外勤':'#ea580c'};
+  const BBG={'慈':'#eef2ff','茂':'#d1fae5','G9':'#ede9fe','外勤':'#ffedd5'};
   let html='';
   if(errors.length){
     html+=errors.map(e=>`<div class="auto-err" style="font-size:11px;padding:5px 10px;margin-bottom:3px;"><span>✕</span><span>${e}</span></div>`).join('');
@@ -2077,6 +2120,28 @@ function exportCalendarExcel(){
       styleMap[XLSX.utils.encode_cell({r:R+1,c:c0+1})]={font:{sz:9,color:{rgb:'FFFFFFFF'}},fill:{fgColor:{rgb:'FF595959'}},alignment:{horizontal:'center'}};
     });
     R+=2;
+
+    // 重要行程列（該週有標記才顯示）
+    const weekMtgs=week.map(w=>(manualMeetings[w.ds]||[]));
+    if(weekMtgs.some(ms=>ms.length)){
+      const mrow=['重要行程','',''];
+      week.forEach((w,i)=>{
+        const ms=weekMtgs[i];
+        mrow.push(ms.length?ms.map(mt=>`${mt.label}${mt.time?' '+mt.time:''}`).join('\n'):'');
+        mrow.push('');
+      });
+      aoa.push(mrow);
+      merges.push({s:{r:R,c:0},e:{r:R,c:2}});
+      styleMap[XLSX.utils.encode_cell({r:R,c:0})]={font:{bold:true,sz:9,color:{rgb:'FF92400E'}},fill:{fgColor:{rgb:'FFFEF3C7'}},alignment:{horizontal:'center',vertical:'center'}};
+      week.forEach((w,i)=>{
+        const c0=3+i*2;
+        merges.push({s:{r:R,c:c0},e:{r:R,c:c0+1}});
+        if(weekMtgs[i].length){
+          styleMap[XLSX.utils.encode_cell({r:R,c:c0})]={font:{sz:8,color:{rgb:'FF92400E'}},fill:{fgColor:{rgb:'FFFEF3C7'}},alignment:{horizontal:'center',vertical:'center',wrapText:true}};
+        }
+      });
+      R++;
+    }
 
     // 人員列
     sortedStaff.forEach(s=>{
